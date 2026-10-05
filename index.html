@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111111">
+<title>Omega Overtime</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;background:#f3f3f3;color:#111;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif
+}
+.app{max-width:500px;margin:auto;min-height:100vh}
+header{
+background:#111;color:white;padding:24px 20px 18px;
+border-bottom:5px solid #b40000
+}
+header h1{margin:0;font-size:25px}
+header p{margin:5px 0 0;color:#bbb;font-size:13px}
+main{padding:16px}
+.card{
+background:white;border-radius:18px;padding:17px;
+margin-bottom:14px;
+box-shadow:0 2px 12px #00000012
+}
+.nav{
+display:grid;grid-template-columns:1fr 1fr 1fr;
+gap:8px;margin-bottom:14px
+}
+.nav button{
+border:0;padding:11px;border-radius:10px;
+background:#ddd;font-weight:700
+}
+.nav button.active{background:#111;color:white}
+.clock{
+font-size:44px;font-weight:800;text-align:center;
+margin:5px 0
+}
+.today{text-align:center;color:#777;font-size:13px}
+.big{
+width:100%;padding:17px;border:0;border-radius:13px;
+background:#b40000;color:white;font-size:18px;
+font-weight:800;margin-top:14px
+}
+.stats{
+display:grid;grid-template-columns:1fr 1fr;gap:10px
+}
+.stat{
+background:#111;color:white;border-radius:14px;padding:14px
+}
+.stat span{display:block;color:#aaa;font-size:11px}
+.stat b{display:block;font-size:24px;margin-top:4px}
+label{
+display:block;font-size:11px;font-weight:800;
+color:#666;margin:12px 0 5px
+}
+input,textarea{
+width:100%;border:1px solid #ddd;border-radius:10px;
+padding:12px;font-size:15px
+}
+textarea{min-height:100px}
+.actions{display:flex;gap:8px;margin-top:12px}
+.actions button{
+flex:1;padding:12px;border:0;border-radius:10px;
+font-weight:700
+}
+.save{background:#b40000;color:white}
+.dark{background:#111;color:white}
+.grey{background:#eee}
+.danger{background:#fee2e2;color:#991b1b}
+.entry{
+border:1px solid #e5e5e5;border-radius:12px;
+padding:13px;margin-top:10px
+}
+.entrytop{
+display:flex;justify-content:space-between;
+font-weight:800
+}
+.entry small{color:#777}
+.badge{
+display:inline-block;padding:4px 8px;border-radius:20px;
+background:#dcfce7;color:#166534;
+font-size:11px;font-weight:700
+}
+.open{background:#fff0c2;color:#805d00}
+.hidden{display:none}
+.empty{text-align:center;color:#888;padding:30px}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header>
+<h1>OMEGA OVERTIME</h1>
+<p>Personal overtime work logbook</p>
+</header>
+
+<main>
+
+<div class="nav">
+<button id="homeBtn" class="active" onclick="show('home')">Home</button>
+<button id="newBtn" onclick="show('new')">New Log</button>
+<button id="regBtn" onclick="show('register')">Register</button>
+</div>
+
+<!-- HOME -->
+
+<section id="home">
+
+<div class="card">
+
+<div class="today" id="today"></div>
+
+<div class="clock" id="clock">00:00</div>
+
+<div class="today" id="status">
+No active overtime session
+</div>
+
+<button id="clockButton" class="big" onclick="clockAction()">
+CLOCK IN
+</button>
+
+</div>
+
+<div class="stats">
+
+<div class="stat">
+<span>THIS MONTH</span>
+<b id="monthlyTotal">0:00</b>
+</div>
+
+<div class="stat">
+<span>SESSIONS</span>
+<b id="sessionTotal">0</b>
+</div>
+
+</div>
+
+<div class="card" style="margin-top:14px">
+<b>Current session</b>
+<p id="currentSession" style="color:#777">
+Nothing clocked in.
+</p>
+</div>
+
+</section>
+
+
+<!-- NEW LOG -->
+
+<section id="new" class="hidden">
+
+<div class="card">
+
+<h2 style="margin-top:0">Overtime Session</h2>
+
+<label>DATE</label>
+<input id="date" type="date">
+
+<label>START TIME</label>
+<input id="start" type="time">
+
+<label>PROJECT / JOB</label>
+<input id="job" placeholder="Example: LL9">
+
+<label>WORK DESCRIPTION</label>
+<textarea id="description"
+placeholder="Describe what you worked on..."></textarea>
+
+<label>CATEGORY</label>
+<input id="category" value="Omega Work">
+
+<div class="actions">
+<button class="grey" onclick="clearForm()">Clear</button>
+<button class="save" onclick="saveLog()">Save Entry</button>
+</div>
+
+</div>
+
+</section>
+
+
+<!-- REGISTER -->
+
+<section id="register" class="hidden">
+
+<div class="card">
+
+<h2 style="margin-top:0">Overtime Register</h2>
+
+<div id="entries"></div>
+
+</div>
+
+</section>
+
+</main>
+</div>
+
+
+<script>
+
+const STORAGE="OMEGA_OVERTIME_DATA";
+
+let entries=
+JSON.parse(localStorage.getItem(STORAGE)||"[]");
+
+let active=
+JSON.parse(localStorage.getItem(STORAGE+"_ACTIVE")||"null");
+
+
+function pad(n){
+return String(n).padStart(2,"0");
+}
+
+
+function now(){
+
+const d=new Date();
+
+return{
+date:
+d.getFullYear()+"-"+
+pad(d.getMonth()+1)+"-"+
+pad(d.getDate()),
+
+time:
+pad(d.getHours())+":"+
+pad(d.getMinutes())
+};
+
+}
+
+
+function minutes(start,end){
+
+let a=start.split(":").map(Number);
+let b=end.split(":").map(Number);
+
+let x=a[0]*60+a[1];
+let y=b[0]*60+b[1];
+
+if(y<x)y+=1440;
+
+return y-x;
+
+}
+
+
+function hours(m){
+
+return Math.floor(m/60)+":"+pad(m%60);
+
+}
+
+
+function save(){
+
+localStorage.setItem(
+STORAGE,
+JSON.stringify(entries)
+);
+
+localStorage.setItem(
+STORAGE+"_ACTIVE",
+JSON.stringify(active)
+);
+
+render();
+
+}
+
+
+function clockAction(){
+
+if(!active){
+
+const n=now();
+
+active={
+date:n.date,
+start:n.time,
+job:"",
+description:"",
+category:"Omega Work"
+};
+
+document.getElementById("date").value=n.date;
+document.getElementById("start").value=n.time;
+
+show("new");
+
+save();
+
+}else{
+
+const n=now();
+
+if(
+!document.getElementById("job").value.trim() ||
+!document.getElementById("description").value.trim()
+){
+
+show("new");
+
+alert(
+"Enter the project/job and work description before clocking out."
+);
+
+return;
+
+}
+
+active.job=
+document.getElementById("job").value.trim();
+
+active.description=
+document.getElementById("description").value.trim();
+
+active.category=
+document.getElementById("category").value.trim()
+||"Omega Work";
+
+active.end=n.time;
+
+entries.push({
+id:Date.now(),
+date:active.date,
+start:active.start,
+end:active.end,
+job:active.job,
+description:active.description,
+category:active.category
+});
+
+active=null;
+
+save();
+
+clearForm();
+
+show("home");
+
+alert("Overtime session closed and saved.");
+
+}
+
+}
+
+
+function saveLog(){
+
+const d=document.getElementById("date").value;
+const s=document.getElementById("start").value;
+const j=document.getElementById("job").value.trim();
+const x=document.getElementById("description").value.trim();
+const c=document.getElementById("category").value.trim()
+||"Omega Work";
+
+if(!d||!s||!j||!x){
+
+alert(
+"Please complete the date, start time, project/job and description."
+);
+
+return;
+
+}
+
+entries.push({
+id:Date.now(),
+date:d,
+start:s,
+end:null,
+job:j,
+description:x,
+category:c
+});
+
+active=null;
+
+save();
+
+clearForm();
+
+show("register");
+
+}
+
+
+function clearForm(){
+
+document.getElementById("date").value="";
+document.getElementById("start").value="";
+document.getElementById("job").value="";
+document.getElementById("description").value="";
+document.getElementById("category").value="Omega Work";
+
+}
+
+
+function deleteEntry(id){
+
+if(confirm("Delete this overtime entry?")){
+
+entries=
+entries.filter(x=>x.id!==id);
+
+save();
+
+}
+
+}
+
+
+function show(section){
+
+["home","new","register"].forEach(x=>{
+
+document.getElementById(x)
+.classList.toggle("hidden",x!==section);
+
+});
+
+["homeBtn","newBtn","regBtn"].forEach(x=>{
+document.getElementById(x).classList.remove("active");
+});
+
+if(section==="home")
+document.getElementById("homeBtn").classList.add("active");
+
+if(section==="new")
+document.getElementById("newBtn").classList.add("active");
+
+if(section==="register")
+document.getElementById("regBtn").classList.add("active");
+
+render();
+
+}
+
+
+function render(){
+
+const n=now();
+
+document.getElementById("today").textContent=
+new Date().toLocaleDateString(
+undefined,
+{
+weekday:"long",
+day:"numeric",
+month:"long",
+year:"numeric"
+}
+);
+
+document.getElementById("clock").textContent=n.time;
+
+let total=0;
+
+entries.forEach(e=>{
+
+if(e.date.startsWith(n.date.substring(0,7)) && e.end){
+
+total+=minutes(e.start,e.end);
+
+}
+
+});
+
+document.getElementById("monthlyTotal").textContent=
+hours(total);
+
+document.getElementById("sessionTotal").textContent=
+entries.length;
+
+
+if(active){
+
+document.getElementById("status").textContent=
+"OVERTIME SESSION ACTIVE";
+
+document.getElementById("clockButton").textContent=
+"CLOCK OUT";
+
+document.getElementById("clockButton").style.background=
+"#111";
+
+document.getElementById("currentSession").textContent=
+"Started "+active.date+" at "+active.start;
+
+}else{
+
+document.getElementById("status").textContent=
+"No active overtime session";
+
+document.getElementById("clockButton").textContent=
+"CLOCK IN";
+
+document.getElementById("clockButton").style.background=
+"#b40000";
+
+document.getElementById("currentSession").textContent=
+"Nothing clocked in.";
+
+}
+
+
+const box=document.getElementById("entries");
+
+box.innerHTML="";
+
+if(!entries.length){
+
+box.innerHTML=
+'<div class="empty">No overtime entries yet.</div>';
+
+return;
+
+}
+
+
+entries
+.slice()
+.sort((a,b)=>
+(b.date+b.start).localeCompare(a.date+a.start)
+)
+.forEach(e=>{
+
+let duration=e.end
+?hours(minutes(e.start,e.end))
+:"OPEN";
+
+let div=document.createElement("div");
+
+div.className="entry";
+
+div.innerHTML=`
+
+<div class="entrytop">
+<span>${e.date}</span>
+<span>${e.start} → ${e.end||"OPEN"}</span>
+</div>
+
+<p style="margin:8px 0 4px">
+<b>${escapeHTML(e.job)}</b>
+</p>
+
+<small>${escapeHTML(e.category)}</small>
+
+<p>${escapeHTML(e.description)}</p>
+
+<span class="badge ${e.end?"":"open"}">
+${duration}
+</span>
+
+<div class="actions">
+<button class="danger"
+onclick="deleteEntry(${e.id})">
+Delete
+</button>
+</div>
+
+`;
+
+box.appendChild(div);
+
+});
+
+}
+
+
+function escapeHTML(text){
+
+return String(text).replace(
+/[&<>"']/g,
+function(m){
+
+return{
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#039;"
+
+}[m];
+
+});
+
+}
+
+
+setInterval(render,1000);
+
+render();
+
+</script>
+
+</body>
+</html>
